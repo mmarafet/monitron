@@ -155,7 +155,7 @@
     }
     .toast.show{ opacity:1; transform: translateX(-50%) translateY(-4px); }
 
-    /* ===== Mounting stepper (FIX: было #view-mount, теперь #calc-mount) ===== */
+    /* ===== stepper ===== */
     #calc-mount .m-stepper{ display:flex; flex-wrap:wrap; gap:8px; }
     #calc-mount .m-step{
       display:flex; align-items:center; gap:8px;
@@ -193,7 +193,6 @@
 
     #calc-mount .tiles{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
     @media (max-width: 560px){ #calc-mount .tiles{ grid-template-columns: 1fr; } }
-
     #calc-mount .tile{
       border:1px solid var(--border);
       border-radius:16px;
@@ -214,7 +213,6 @@
 
     #calc-mount .switches{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
     @media (max-width: 560px){ #calc-mount .switches{ grid-template-columns: 1fr; } }
-
     #calc-mount .tog{
       border:1px solid var(--border);
       border-radius:16px;
@@ -266,6 +264,29 @@
       background: rgba(255,255,255,.04);
     }
     #calc-mount .table tr:last-child td{ border-bottom:none; }
+
+    /* ===== Group rows in итоговой таблице ===== */
+    #calc-mount .gRow td{
+      font-weight: 900;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+    }
+    #calc-mount .gRow .mono{ opacity:.85; }
+
+    #calc-mount .g-server td{ background: rgba(98,179,255,.12); }
+    #calc-mount .g-mount td{ background: rgba(34,197,94,.12); }
+    #calc-mount .g-comm td{ background: rgba(255,200,87,.12); }
+    #calc-mount .g-tools td{ background: rgba(168,85,247,.12); }
+    #calc-mount .g-sensors td{ background: rgba(148,163,184,.10); }
+
+    #calc-mount .gRow td:first-child{
+      border-top-left-radius: 12px;
+      border-bottom-left-radius: 12px;
+    }
+    #calc-mount .gRow td:last-child{
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
   </style>
 </head>
 <body>
@@ -275,7 +296,7 @@
       <div class="logo" aria-hidden="true"></div>
       <div>
         <h1>Монтажные комплектующие</h1>
-        <div class="subtitle">Степпер (структура) • дальше подключим Excel</div>
+        <div class="subtitle">Расчёт по формулам из Excel</div>
       </div>
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
@@ -296,19 +317,20 @@
           <a href="./mount.html" class="active"><span class="nav-title">Монтажные комплектующие</span></a>
           <a href="./psu.html"><span class="nav-title">Питание датчиков</span></a>
         </div>
-        <div class="hint">Тема, оформление и сохранение настроек единые на всех страницах. Новые калькуляторы добавим сюда же.</div>
+        <div class="hint">Тема общая для всех страниц (через localStorage).</div>
       </div>
     </section>
 
     <section class="card" id="calc-mount">
       <div class="card-h">
         <b>Монтажные комплектующие</b>
-        <span class="pill">степпер (структура)</span>
+        <span class="pill">Excel-логика</span>
       </div>
 
       <div class="card-b">
         <div class="m-stepper" id="m_stepper"></div>
 
+        <!-- step 0 -->
         <div class="m-stepPane" id="m_step0">
           <div class="hint" style="margin-top:12px">Шаг 1 — Тип объекта</div>
           <div class="tiles" id="m_objTiles" style="margin-top:10px"></div>
@@ -317,18 +339,9 @@
           </div>
         </div>
 
+        <!-- step 1 -->
         <div class="m-stepPane" id="m_step1">
-          <div class="hint" style="margin-top:12px">Шаг 2 — Крепление к стене (если применимо)</div>
-          <div id="m_wallBlock" style="margin-top:10px"><div class="tiles" id="m_wallTiles"></div></div>
-          <div class="note" id="m_wallNA" style="display:none; margin-top:10px">Для <b>резервуара</b> крепление к стене не требуется.</div>
-          <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap">
-            <button class="btn" id="m_prev1" type="button">← Назад</button>
-            <button class="btn primary" id="m_next1" type="button">Далее →</button>
-          </div>
-        </div>
-
-        <div class="m-stepPane" id="m_step2">
-          <div class="hint" style="margin-top:12px">Шаг 3 — Условия прокладки и защиты</div>
+          <div class="hint" style="margin-top:12px">Шаг 2 — Условия</div>
 
           <div class="switches" style="margin-top:10px">
             <div class="tog" id="m_togGofra">
@@ -336,21 +349,64 @@
               <input id="m_gofra" type="checkbox"/>
             </div>
             <div class="tog" id="m_togEx">
-              <div>Взрывозащитное исполнение<br/><small id="m_exSub">—</small></div>
+              <div>Взрывозащита<br/><small id="m_exSub">—</small></div>
               <input id="m_ex" type="checkbox"/>
             </div>
             <div class="tog" id="m_togVib">
-              <div>Вибрация<br/><small>Если да → поплавки в расчёт</small></div>
+              <div>Вибрация<br/><small>Если да → поплавки</small></div>
               <input id="m_vib" type="checkbox"/>
             </div>
-            <div class="tog">
-              <div>Соединители<br/><small>указываются вручную</small></div>
-              <span class="pill">OK</span>
+            <div class="tog" id="m_togHeat">
+              <div>Обогрев датчиков<br/><small>пока влияет только как отметка</small></div>
+              <input id="m_heat" type="checkbox"/>
             </div>
           </div>
 
           <div class="warn" id="m_floatNote" style="display:none; margin-top:10px">
-            ✅ Включена <b>вибрация</b> — в ведомость будут добавлены <b>поплавки</b> (привяжем к Excel).
+            ✅ Включена <b>вибрация</b> — в ведомость добавятся <b>поплавки</b> (строка 4.15).
+          </div>
+
+          <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap">
+            <button class="btn" id="m_prev1" type="button">← Назад</button>
+            <button class="btn primary" id="m_next1" type="button">Далее →</button>
+          </div>
+        </div>
+
+        <!-- step 2 -->
+        <div class="m-stepPane" id="m_step2">
+          <div class="hint" style="margin-top:12px">Шаг 3 — Датчики и гидротрасса (входы Excel)</div>
+
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Кол-во датчиков (D3)</label>
+              <input id="m_sensors" min="0" placeholder="например: 25" step="1" type="number"/>
+            </div>
+            <div>
+              <label>Длина жидкостной трассы, м (H3)</label>
+              <input id="m_len" min="0" placeholder="например: 150" step="0.1" type="number"/>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Количество углов (H14)</label>
+              <input id="m_elbows" min="0" placeholder="например: 2" step="1" type="number"/>
+            </div>
+            <div>
+              <label>Количество участков более 50м (H15)</label>
+              <input id="m_over50" min="0" placeholder="например: 4" step="1" type="number"/>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px">
+            <div>
+              <label>Количество тройников (H16)</label>
+              <input id="m_tees" min="0" placeholder="например: 1" step="1" type="number"/>
+            </div>
+            <div>
+              <label>Количество четверников (H17)</label>
+              <input id="m_crosses" min="0" placeholder="например: 0" step="1" type="number"/>
+            </div>
           </div>
 
           <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap">
@@ -359,172 +415,81 @@
           </div>
         </div>
 
+        <!-- step 3 -->
         <div class="m-stepPane" id="m_step3">
-          <div class="hint" style="margin-top:12px">Шаг 4 — Датчики и гидротрасса</div>
+          <div class="hint" style="margin-top:12px">Шаг 4 — Сервер / связь / параметры Excel</div>
 
           <div class="row" style="margin-top:10px">
             <div>
-              <label>Кол-во датчиков (шт.)</label>
-              <input id="m_sensors" min="0" placeholder="например: 12" step="1" type="number"/>
+              <label>Количество систем (H2)</label>
+              <input id="m_systems" min="1" placeholder="например: 2" step="1" type="number"/>
             </div>
-            <div class="tog" id="m_togHeat" style="height:48px; align-self:end;">
-              <div>Обогрев датчиков<br/><small>если включить → потребление выше</small></div>
-              <input id="m_heat" type="checkbox"/>
+            <div>
+              <label>Кол-во крайних датчиков (H6)</label>
+              <input id="m_edgeSensors" min="0" placeholder="например: 2" step="1" type="number"/>
             </div>
           </div>
 
           <div class="row" style="margin-top:10px">
             <div>
-              <label>Длина трассы (м)</label>
-              <input id="m_len" min="0" placeholder="например: 50" step="0.1" type="number"/>
+              <label>Расстояние от крайнего датчика до компьютера (H7), м</label>
+              <input id="m_distLast" min="0" placeholder="например: 10" step="0.1" type="number"/>
             </div>
             <div>
-              <label>Диаметр трубки (мм)</label>
-              <input id="m_diam" min="0" placeholder="например: 12" step="0.1" type="number"/>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label>Кол-во углов (шт.)</label>
-              <input id="m_elbows" min="0" placeholder="0" step="1" type="number"/>
-            </div>
-            <div>
-              <label>Соединители для углов (шт.) (если есть)</label>
-              <input id="m_connElbows" min="0" placeholder="0" step="1" type="number"/>
+              <label>Расстояние от розетки до сервера (H11), м</label>
+              <input id="m_socketDist" min="0" placeholder="например: 50" step="0.1" type="number"/>
             </div>
           </div>
 
           <div class="row" style="margin-top:10px">
             <div>
-              <label>Кол-во тройников (шт.)</label>
-              <input id="m_tees" min="0" placeholder="0" step="1" type="number"/>
-            </div>
-            <div>
-              <label>Соединители для тройников (шт.) (если есть)</label>
-              <input id="m_connTees" min="0" placeholder="0" step="1" type="number"/>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label>Кол-во четверников (шт.)</label>
-              <input id="m_crosses" min="0" placeholder="0" step="1" type="number"/>
-            </div>
-            <div>
-              <label>Соединители для четверников (шт.) (если есть)</label>
-              <input id="m_connCrosses" min="0" placeholder="0" step="1" type="number"/>
-            </div>
-          </div>
-
-          <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap">
-            <button class="btn" id="m_prev3" type="button">← Назад</button>
-            <button class="btn primary" id="m_next3" type="button">Далее →</button>
-          </div>
-        </div>
-
-        <div class="m-stepPane" id="m_step4">
-          <div class="hint" style="margin-top:12px">Шаг 5 — Серверы, питание и связь</div>
-
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label>Количество серверов (шт.)</label>
-              <input id="m_servers" min="0" placeholder="например: 1" step="1" type="number"/>
-            </div>
-            <div>
-              <label>Расстояние от крайнего датчика до сервера (м)</label>
-              <input id="m_distLast" min="0" placeholder="например: 80" step="0.1" type="number"/>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label>Кол-во блоков питания (шт.)</label>
-              <input id="m_psuCount" min="0" placeholder="например: 2" step="1" type="number"/>
-            </div>
-            <div>
-              <label>Мощность одного БП (Вт)</label>
-              <input id="m_psuPower" min="0" placeholder="например: 240" step="1" type="number"/>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:10px">
-            <div>
-              <label>Расстояние от сервера до точки подключения (м)</label>
-              <input id="m_distConn" min="0" placeholder="например: 20" step="0.1" type="number"/>
-            </div>
-            <div>
-              <label>Интернет заказчика</label>
-              <select id="m_custNet">
+              <label>Трос металлический нужен? (H10)</label>
+              <select id="m_cableNeeded">
                 <option value="1">Да</option>
                 <option value="0">Нет</option>
               </select>
             </div>
-          </div>
-
-          <div class="switches" style="margin-top:10px">
-            <div class="tog" id="m_togAnt">
-              <div>Интернет-антенна<br/><small>нужна/не нужна</small></div>
-              <input id="m_ant" type="checkbox"/>
-            </div>
-            <div class="tog" id="m_togAntPlace">
-              <div>Размещение антенны<br/><small>в сервере / выносная</small></div>
-              <select id="m_antPlace" style="width:160px">
-                <option value="in">В сервере</option>
-                <option value="out">Выносная</option>
+            <div>
+              <label>Крепление шланга (H8/H9)</label>
+              <select id="m_hoseMount">
+                <option value="ring">Анкер-кольца</option>
+                <option value="dowel">Дюбель-хомуты</option>
               </select>
             </div>
           </div>
 
-          <div class="row" id="m_antDistRow" style="margin-top:10px">
-            <div>
-              <label>Расстояние от сервера до антенны (м)</label>
-              <input id="m_antDist" min="0" placeholder="например: 15" step="0.1" type="number"/>
-            </div>
-            <div class="note">Дистанция учитывается только при <b>выносной</b> антенне.</div>
-          </div>
-
-          <div id="m_tunnelBlock" style="display:none; margin-top:10px">
-            <div class="switches">
-              <div class="tog" id="m_togTr">
-                <div>Трансформатор<br/><small>только для тоннеля</small></div>
-                <input id="m_tr" type="checkbox"/>
-              </div>
-              <div class="tog">
-                <div>Кол-во и расстояние<br/><small>если нужен</small></div>
-                <div style="display:flex; gap:8px; align-items:center">
-                  <input id="m_trCount" min="0" placeholder="шт" step="1" style="width:92px" type="number"/>
-                  <input id="m_trDist" min="0" placeholder="м" step="0.1" style="width:92px" type="number"/>
-                </div>
-              </div>
-            </div>
+          <div class="note" style="margin-top:10px">
+            В Excel есть формула для <b>Анкер-кольцо</b>: <span class="mono">=J3/5 + D3*2</span>.  
+            В файле J3 пустая, поэтому принято: <b>J3 = H3</b> (длина трассы).
           </div>
 
           <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap">
-            <button class="btn" id="m_prev4" type="button">← Назад</button>
-            <button class="btn primary" id="m_next4" type="button">Итог →</button>
+            <button class="btn" id="m_prev3" type="button">← Назад</button>
+            <button class="btn primary" id="m_next3" type="button">Итог →</button>
           </div>
         </div>
 
-        <div class="m-stepPane" id="m_step5">
-          <div class="hint" style="margin-top:12px">Шаг 6 — Итог (пока структура)</div>
+        <!-- step 4 (ИТОГ) -->
+        <div class="m-stepPane" id="m_step4">
+          <div class="hint" style="margin-top:12px">Шаг 5 — Итоговая ведомость</div>
 
           <div class="note" style="margin-top:10px">
-            Сейчас это <b>структура</b> и свод введённых параметров. Когда пришлёшь Excel — подставлю реальные позиции/формулы и получится ведомость комплектующих.
+            Позиции и формулы взяты из Excel. Позиции из раздела <b>2.x (сервер)</b> умножаются на <b>кол-во систем (H2)</b>.
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="m_export_excel">Экспорт в Excel</button>
+            <button class="btn" id="m_copy">Скопировать</button>
+            <button class="btn" id="m_reset">Сбросить</button>
+            <span class="hint" id="m_status" style="margin:0;">—</span>
           </div>
 
           <div style="margin-top:10px; overflow:auto">
             <table class="table" id="m_outTable"></table>
           </div>
 
-          <div class="actions">
-            <button class="btn primary" id="m_copy">Скопировать итог</button>
-            <button class="btn" id="m_reset">Сбросить</button>
-            <span class="hint" id="m_status" style="margin:0;">—</span>
-          </div>
-
           <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; flex-wrap:wrap">
-            <button class="btn" id="m_prev5" type="button">← Назад</button>
+            <button class="btn" id="m_prev4" type="button">← Назад</button>
             <div></div>
           </div>
         </div>
@@ -581,42 +546,101 @@
   }
   const byId = (id) => document.getElementById(id);
 
-  // ===== монтажный степпер (структура + сохранение) =====
-  const MKEY = "calc_mounting_state_v1";
+  // ===== позиции из Excel =====
+  const EXCEL_ITEMS = [
+    {"num":"1.1","name":"Датчики","unit":"шт","qty":25,"type":"все"},
+    {"num":"1.2","name":"Сосуды с креплением","unit":"шт","qty":"=D3","type":"все"},
+
+    {"num":"2.1","name":"Компьютер","unit":"шт","qty":1,"type":"все"},
+    {"num":"2.2","name":"Блоки питания","unit":"шт","qty":"индивидуально","type":"все"},
+    {"num":"2.3","name":"ИБП","unit":"шт","qty":1,"type":"все"},
+    {"num":"2.4","name":"преобразователь RS-485","unit":"шт","qty":"индивидуально","type":"все"},
+    {"num":"2.5","name":"Сетевой фильтр","unit":"шт","qty":1,"type":"все"},
+    {"num":"2.6","name":"Провод питания 220В до розетки","unit":"м","qty":"=H11","type":"все"},
+    {"num":"2.7","name":"Трансформатор 380/220В","unit":"шт","qty":1,"type":"тоннели"},
+    {"num":"2.8","name":"Провода для трансформатора","unit":"м","qty":"=H11","type":"тоннели"},
+    {"num":"2.9","name":"Роутер+симкарта","unit":"шт","qty":"=D6","type":"все"},
+    {"num":"2.10","name":"Струбцина","unit":"шт","qty":"=D3-1","type":"Резервуары"},
+
+    {"num":"3.1","name":"Стеновой анкер","unit":"шт","qty":"=D3*2","type":"здание, тоннель, спец. Назначение"},
+    {"num":"3.2","name":"Химический анкер","unit":"шт","qty":"=ROUNDUP(D3/10+D20/10, 0)","type":"здание, тоннель, спец. Назначение"},
+    {"num":"3.3","name":"Шпилька для хим. Анкера","unit":"шт","qty":"=D3*2","type":"здание, тоннель, спец. Назначение"},
+    {"num":"3.4","name":"Анкер-кольцо","unit":"шт","qty":"=J3/5+D3*2","type":"здание, тоннель, спец. Назначение"},
+    {"num":"3.5","name":"Металлический хомут жикдостный","unit":"шт","qty":"=D3*3+D33*3+D34*2+D35*2+D36*4","type":"все"},
+    {"num":"3.6","name":"Металлический хомут воздушный","unit":"шт","qty":"=D21","type":"все"},
+
+    {"num":"4.1","name":"ПВХ трубка жидкостная","unit":"м","qty":"=H3","type":"все"},
+    {"num":"4.2","name":"ПВХ трубка воздушная","unit":"м","qty":"=D24","type":"все"},
+    {"num":"4.3","name":"Витая пара","unit":"м","qty":"=D25+H7","type":"все"},
+    {"num":"4.4","name":"Клеммы Wago тройные","unit":"шт","qty":"=D3*2","type":"все"},
+    {"num":"4.5","name":"Трос","unit":"м","qty":"=D24","type":"все"},
+    {"num":"4.6","name":"Зажим троса","unit":"шт","qty":"=D20","type":"все"},
+    {"num":"4.7","name":"Карабин/скоба такелажная","unit":"шт","qty":"=D29","type":"все"},
+    {"num":"4.8","name":"Талреп","unit":"шт","qty":"=D29/2","type":"все"},
+    {"num":"4.9","name":"Жидкость-теплоноситель","unit":"л","qty":"индивидуально","type":"все"},
+    {"num":"4.10","name":"Тройник для шланга","unit":"шт","qty":"=H16","type":"все"},
+    {"num":"4.11","name":"Уголок для шланга","unit":"шт","qty":"=H14","type":"все"},
+    {"num":"4.12","name":"Соединитель для шланга","unit":"шт","qty":"=H15","type":"все"},
+    {"num":"4.13","name":"Четверник для шланга","unit":"шт","qty":"=H17","type":"все"},
+    {"num":"4.14","name":"Стяжки пластиковые","unit":"шт","qty":"=D24/1","type":"все"},
+    {"num":"4.15","name":"Поплавки","unit":"шт","qty":"=D3","type":"если есть Вибрация в условиях"},
+
+    {"num":"5.1","name":"Шаблон монтажный","unit":"шт","qty":1,"type":"все"},
+    {"num":"5.2","name":"Перфоратор","unit":"шт","qty":1,"type":"все"},
+    {"num":"5.3","name":"Бур 8мм","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.4","name":"Бур 10мм","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.5","name":"Электроотвертка","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.6","name":"Нож","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.7","name":"Кусачки","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.8","name":"Ключ 17мм","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.9","name":"Ключ 13мм","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.10","name":"Отвертка маленькая плоская","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.11","name":"Отвертка крестовая","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.12","name":"Уровень пузырьковый","unit":"шт","qty":1,"type":"все"},
+    {"num":"5.13","name":"Маркер для разметки","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.14","name":"Стриппер","unit":"шт","qty":2,"type":"все"},
+    {"num":"5.15","name":"Лазерный уровень","unit":"шт","qty":1,"type":"все"},
+    {"num":"5.16","name":"Насос для прокачки жидкости","unit":"шт","qty":1,"type":"все"},
+    {"num":"5.17","name":"Шуруповерт","unit":"шт","qty":1,"type":"все"}
+  ];
+
+  // ===== состояние =====
+  const MKEY = "calc_mounting_state_v3_excel";
   const mSteps = [
     { title:"Тип объекта" },
-    { title:"Крепление" },
     { title:"Условия" },
     { title:"Трасса" },
-    { title:"Сервер/связь" },
+    { title:"Параметры" },
     { title:"Итог" },
   ];
+
   const m = {
     step: 0,
-    obj: "building",
-    wall: "anchor",
+    obj: "building",      // building / tank / tunnel / special
     gofra: false,
     ex: false,
     vib: false,
-    sensors: 0,
     heat: false,
-    len: 0,
-    diam: 0,
-    elbows: 0, connElbows: 0,
-    tees: 0, connTees: 0,
-    crosses: 0, connCrosses: 0,
-    servers: 0,
-    distLast: 0,
-    psuCount: 0, psuPower: 0,
-    distConn: 0,
-    custNet: true,
-    ant: false, antPlace: "in", antDist: 0,
-    tr: false, trCount: 0, trDist: 0,
+
+    sensors: 25,          // D3
+    len: 150,             // H3
+    elbows: 2,            // H14
+    over50: 4,            // H15 (в Excel используется как "соединитель для шланга")
+    tees: 1,              // H16
+    crosses: 0,           // H17
+
+    systems: 2,           // H2
+    edgeSensors: 2,       // H6
+    distLast: 10,         // H7
+    socketDist: 50,       // H11
+    cableNeeded: 1,       // H10 (1/0)
+    hoseMount: "ring",    // ring/dowel (H8/H9)
   };
 
   function mLoad(){ try{ const raw = localStorage.getItem(MKEY); if(!raw) return; Object.assign(m, JSON.parse(raw)||{}); }catch(_ ){} }
   function mSave(){ try{ localStorage.setItem(MKEY, JSON.stringify(m)); }catch(_ ){} }
 
+  // ===== stepper =====
   const m_stepper = byId("m_stepper");
   function mRenderStepper(){
     m_stepper.innerHTML = "";
@@ -641,6 +665,7 @@
     window.scrollTo({top:0, behavior:"smooth"});
   }
 
+  // ===== ui: object tiles =====
   const objTiles = byId("m_objTiles");
   const objList = [
     { key:"building", label:"Здание" },
@@ -666,45 +691,25 @@
     });
   }
 
-  const wallTiles = byId("m_wallTiles");
-  const wallList = [
-    { key:"anchor", label:"Обычный анкер" },
-    { key:"chem", label:"Химический анкер" },
-  ];
-  function mRenderWallTiles(){
-    wallTiles.innerHTML = "";
-    wallList.forEach(w => {
-      const el = document.createElement("div");
-      el.className = "tile" + (m.wall===w.key ? " active" : "");
-      el.innerHTML = `<div>${w.label}</div><span class="pill">стена</span>`;
-      el.addEventListener("click", () => {
-        m.wall = w.key;
-        mRenderWallTiles();
-        mRenderOutput();
-        mSave();
-      });
-      wallTiles.appendChild(el);
-    });
-  }
-
   function mBindToggles(){
     const gofra = byId("m_gofra");
     const ex = byId("m_ex");
     const vib = byId("m_vib");
+    const heat = byId("m_heat");
 
     const gofraWrap = byId("m_togGofra");
     const exWrap = byId("m_togEx");
     const vibWrap = byId("m_togVib");
+    const heatWrap = byId("m_togHeat");
 
     const gofraSub = byId("m_gofraSub");
     const exSub = byId("m_exSub");
-    const floatNote = byId("m_floatNote");
 
     function sync(){
       gofra.checked = !!m.gofra;
       ex.checked = !!m.ex;
       vib.checked = !!m.vib;
-      floatNote.style.display = m.vib ? "block" : "none";
+      heat.checked = !!m.heat;
 
       gofraSub.textContent = (m.obj === "tank") ? "для резервуара всегда ДА" : "по необходимости";
       exSub.textContent = (m.obj === "tank") ? "для резервуара скрыто" : "по необходимости";
@@ -725,173 +730,380 @@
         exWrap.classList.remove("disabled");
         ex.disabled = false;
       }
+
+      byId("m_floatNote").style.display = m.vib ? "block" : "none";
     }
 
     gofraWrap.addEventListener("click", (e)=>{ if(m.obj==="tank") return; if(e.target.tagName.toLowerCase()==="input") return; gofra.checked=!gofra.checked; gofra.dispatchEvent(new Event("change")); });
     exWrap.addEventListener("click", (e)=>{ if(m.obj==="tank") return; if(e.target.tagName.toLowerCase()==="input") return; ex.checked=!ex.checked; ex.dispatchEvent(new Event("change")); });
     vibWrap.addEventListener("click", (e)=>{ if(e.target.tagName.toLowerCase()==="input") return; vib.checked=!vib.checked; vib.dispatchEvent(new Event("change")); });
+    heatWrap.addEventListener("click", (e)=>{ if(e.target.tagName.toLowerCase()==="input") return; heat.checked=!heat.checked; heat.dispatchEvent(new Event("change")); });
 
     gofra.addEventListener("change", ()=>{ m.gofra = !!gofra.checked; sync(); mRenderOutput(); mSave(); });
     ex.addEventListener("change", ()=>{ m.ex = !!ex.checked; sync(); mRenderOutput(); mSave(); });
     vib.addEventListener("change", ()=>{ m.vib = !!vib.checked; sync(); mRenderOutput(); mSave(); });
+    heat.addEventListener("change", ()=>{ m.heat = !!heat.checked; sync(); mRenderOutput(); mSave(); });
 
     sync();
     mBindToggles._sync = sync;
   }
 
-  function mBindNums(){
-    const num = (id, key) => {
-      const el = byId(id);
-      const apply = () => { m[key] = Number(el.value || 0); mRenderOutput(); mSave(); };
-      el.addEventListener("input", apply);
-      el.addEventListener("change", apply);
-    };
-    num("m_sensors","sensors"); num("m_len","len"); num("m_diam","diam");
-    num("m_elbows","elbows"); num("m_connElbows","connElbows");
-    num("m_tees","tees"); num("m_connTees","connTees");
-    num("m_crosses","crosses"); num("m_connCrosses","connCrosses");
-
-    const heat = byId("m_heat");
-    const heatWrap = byId("m_togHeat");
-    heatWrap.addEventListener("click", (e)=>{ if(e.target.tagName.toLowerCase()==="input") return; heat.checked=!heat.checked; heat.dispatchEvent(new Event("change")); });
-    heat.addEventListener("change", ()=>{ m.heat = !!heat.checked; mRenderOutput(); mSave(); });
-
-    num("m_servers","servers"); num("m_distLast","distLast");
-    num("m_psuCount","psuCount"); num("m_psuPower","psuPower");
-    num("m_distConn","distConn"); num("m_trCount","trCount"); num("m_trDist","trDist");
-
-    byId("m_custNet").addEventListener("change", (e)=>{ m.custNet = (e.target.value === "1"); mRenderOutput(); mSave(); });
-
-    const ant = byId("m_ant"); const antWrap = byId("m_togAnt");
-    const antPlace = byId("m_antPlace"); const antDist = byId("m_antDist");
-    antWrap.addEventListener("click", (e)=>{ if(e.target.tagName.toLowerCase()==="input") return; ant.checked=!ant.checked; ant.dispatchEvent(new Event("change")); });
-    ant.addEventListener("change", ()=>{ m.ant = !!ant.checked; mApplyVisibility(); mRenderOutput(); mSave(); });
-    antPlace.addEventListener("change", ()=>{ m.antPlace = antPlace.value; mApplyVisibility(); mRenderOutput(); mSave(); });
-    antDist.addEventListener("input", ()=>{ m.antDist = Number(antDist.value || 0); mRenderOutput(); mSave(); });
-
-    const tr = byId("m_tr"); const trWrap = byId("m_togTr");
-    trWrap.addEventListener("click", (e)=>{ if(e.target.tagName.toLowerCase()==="input") return; tr.checked=!tr.checked; tr.dispatchEvent(new Event("change")); });
-    tr.addEventListener("change", ()=>{ m.tr = !!tr.checked; mApplyVisibility(); mRenderOutput(); mSave(); });
-  }
-
-  function mApplyVisibility(){
-    const appliesWall = (m.obj !== "tank");
-    byId("m_wallBlock").style.display = appliesWall ? "block" : "none";
-    byId("m_wallNA").style.display = appliesWall ? "none" : "block";
-
-    if(mBindToggles._sync) mBindToggles._sync();
-
-    const antDistRow = byId("m_antDistRow");
-    byId("m_antPlace").disabled = !m.ant;
-    antDistRow.style.display = (m.ant && (m.antPlace === "out")) ? "grid" : "none";
-
-    const tunnelBlock = byId("m_tunnelBlock");
-    tunnelBlock.style.display = (m.obj === "tunnel") ? "block" : "none";
-    byId("m_trCount").disabled = !(m.obj==="tunnel" && m.tr);
-    byId("m_trDist").disabled = !(m.obj==="tunnel" && m.tr);
-    if(m.obj !== "tunnel"){
-      m.tr = false; m.trCount = 0; m.trDist = 0;
-      byId("m_tr").checked = false;
-    }
+  function bindNum(id, key){
+    const el = byId(id);
+    const apply = () => { m[key] = Number(el.value || 0); mRenderOutput(); mSave(); };
+    el.addEventListener("input", apply);
+    el.addEventListener("change", apply);
   }
 
   function mFillInputs(){
-    byId("m_sensors").value = m.sensors ?? 0; byId("m_heat").checked = !!m.heat;
-    byId("m_len").value = m.len ?? 0; byId("m_diam").value = m.diam ?? 0;
-    byId("m_elbows").value = m.elbows ?? 0; byId("m_connElbows").value = m.connElbows ?? 0;
-    byId("m_tees").value = m.tees ?? 0; byId("m_connTees").value = m.connTees ?? 0;
-    byId("m_crosses").value = m.crosses ?? 0; byId("m_connCrosses").value = m.connCrosses ?? 0;
-    byId("m_servers").value = m.servers ?? 0; byId("m_distLast").value = m.distLast ?? 0;
-    byId("m_psuCount").value = m.psuCount ?? 0; byId("m_psuPower").value = m.psuPower ?? 0;
-    byId("m_distConn").value = m.distConn ?? 0; byId("m_custNet").value = m.custNet ? "1" : "0";
-    byId("m_ant").checked = !!m.ant; byId("m_antPlace").value = m.antPlace || "in"; byId("m_antDist").value = m.antDist ?? 0;
-    byId("m_tr").checked = !!m.tr; byId("m_trCount").value = m.trCount ?? 0; byId("m_trDist").value = m.trDist ?? 0;
+    byId("m_sensors").value = m.sensors ?? 0;
+    byId("m_len").value = m.len ?? 0;
+    byId("m_elbows").value = m.elbows ?? 0;
+    byId("m_over50").value = m.over50 ?? 0;
+    byId("m_tees").value = m.tees ?? 0;
+    byId("m_crosses").value = m.crosses ?? 0;
+
+    byId("m_systems").value = m.systems ?? 1;
+    byId("m_edgeSensors").value = m.edgeSensors ?? 0;
+    byId("m_distLast").value = m.distLast ?? 0;
+    byId("m_socketDist").value = m.socketDist ?? 0;
+
+    byId("m_cableNeeded").value = String(m.cableNeeded ?? 1);
+    byId("m_hoseMount").value = m.hoseMount || "ring";
+  }
+
+  function mApplyVisibility(){
+    if(mBindToggles._sync) mBindToggles._sync();
+  }
+
+  // ===== excel-like evaluator =====
+  function roundup(x, digits){
+    if(Number(digits||0) !== 0){
+      const p = Math.pow(10, Number(digits));
+      return Math.ceil(x*p)/p;
+    }
+    return Math.ceil(x);
+  }
+
+  function safeEval(expr, ctx){
+    let e = String(expr);
+    if(e.startsWith("=")) e = e.slice(1);
+
+    e = e.replace(/\b([A-Z]{1,3}\d+)\b/g, (m0, ref) => `(__ctx["${ref}"] ?? 0)`);
+
+    try{
+      const fn = new Function("__ctx", "ROUNDUP", "Math", `"use strict"; return (${e});`);
+      const v = fn(ctx, roundup, Math);
+      return (Number.isFinite(v) ? v : 0);
+    }catch(_){
+      return 0;
+    }
+  }
+
+  function buildCtx(){
+    const ctx = {};
+
+    // Inputs (H*)
+    ctx["H2"]  = Number(m.systems || 1);
+    ctx["H3"]  = Number(m.len || 0);
+    ctx["H6"]  = Number(m.edgeSensors || 0);
+    ctx["H7"]  = Number(m.distLast || 0);
+    ctx["H10"] = Number(m.cableNeeded ?? 1);
+    ctx["H11"] = Number(m.socketDist || 0);
+
+    ctx["H14"] = Number(m.elbows || 0);
+    ctx["H15"] = Number(m.over50 || 0);
+    ctx["H16"] = Number(m.tees || 0);
+    ctx["H17"] = Number(m.crosses || 0);
+
+    // H8/H9: крепление шланга
+    ctx["H8"] = (m.hoseMount === "dowel") ? 1 : 0;
+    ctx["H9"] = (m.hoseMount === "ring") ? 1 : 0;
+
+    // J3 absent in file -> assume J3 = H3
+    ctx["J3"] = ctx["H3"];
+
+    // Base cells
+    ctx["D3"] = Number(m.sensors || 0);
+    ctx["D6"] = 1; // computer count base
+
+    return ctx;
+  }
+
+  const CELL_FORMULAS = {
+    "D4":  "=D3",
+    "D11": "=H11",
+    "D13": "=H11",
+    "D14": "=D6",
+    "D15": "=D3-1",
+    "D17": "=D3*2",
+    "D18": "=ROUNDUP(D3/10+D20/10, 0)",
+    "D19": "=D3*2",
+    "D20": "=J3/5+D3*2",
+    "D21": "=D3*3+D33*3+D34*2+D35*2+D36*4",
+    "D22": "=D21",
+    "D24": "=H3",
+    "D25": "=D24",
+    "D26": "=D25+H7",
+    "D27": "=D3*2",
+    "D28": "=D24",
+    "D29": "=D20",
+    "D30": "=D29",
+    "D31": "=D29/2",
+    "D33": "=H16",
+    "D34": "=H14",
+    "D35": "=H15",
+    "D36": "=H17",
+    "D37": "=D24/1",
+    "D38": "=D3"
+  };
+
+  function calcAll(ctx){
+    for(let pass=0; pass<8; pass++){
+      for(const [cell, f] of Object.entries(CELL_FORMULAS)){
+        ctx[cell] = safeEval(f, ctx);
+      }
+    }
+    return ctx;
+  }
+
+  function objectMatch(typeStr){
+    const t = String(typeStr||"").toLowerCase();
+    if(!t || t === "все") return true;
+    if(t.includes("если есть вибрация")) return !!m.vib;
+
+    const obj = m.obj;
+    if(obj === "tank") return t.includes("резервуар");
+    if(obj === "tunnel") return t.includes("тоннел");
+    if(obj === "building") return t.includes("здание");
+    if(obj === "special") return t.includes("спец");
+
+    // mixed list like: "здание, тоннель, спец. Назначение"
+    if(obj === "tunnel" && t.includes("тоннел")) return true;
+    if(obj === "building" && t.includes("здание")) return true;
+    if(obj === "special" && t.includes("спец")) return true;
+
+    return false;
+  }
+
+  function needsSystemMultiplier(item){
+    return /^2\./.test(String(item.num||""));
+  }
+
+  function formatQty(q){
+    if(typeof q === "string") return q;
+    if(typeof q === "number"){
+      if(!Number.isFinite(q)) return "0";
+      if(Math.abs(q - Math.round(q)) < 1e-9) return String(Math.round(q));
+      return String(Math.round(q*10)/10);
+    }
+    return String(q ?? "");
   }
 
   function mOutRows(){
-    const objName = ({building:"Здание", tank:"Резервуар", tunnel:"Тоннель", special:"Спец. назначение"})[m.obj] || m.obj;
-    const wallName = ({anchor:"Обычный анкер", chem:"Химический анкер"})[m.wall] || m.wall;
+    const ctx = calcAll(buildCtx());
+    const systems = Math.max(1, Number(m.systems||1));
+
     const rows = [];
-    rows.push({pos:"Тип объекта", unit:"—", qty: objName, note:""});
-    if(m.obj !== "tank") rows.push({pos:"Крепление к стене", unit:"—", qty: wallName, note:""});
-    rows.push({pos:"Гофра", unit:"—", qty: m.obj==="tank" ? "Да (по умолчанию)" : (m.gofra ? "Да" : "Нет"), note:""});
-    if(m.obj !== "tank") rows.push({pos:"Взрывозащита", unit:"—", qty: m.ex ? "Да" : "Нет", note:""});
-    rows.push({pos:"Вибрация", unit:"—", qty: m.vib ? "Да" : "Нет", note: m.vib ? "→ поплавки (по Excel)" : ""});
 
-    rows.push({pos:"Датчики", unit:"шт", qty: Number(m.sensors||0), note: m.heat ? "обогрев: да" : "обогрев: нет"});
-    rows.push({pos:"Трасса (длина)", unit:"м", qty: Number(m.len||0), note: (m.diam?`Ø ${m.diam} мм`:"")});
+    for(const it of EXCEL_ITEMS){
+      if(!objectMatch(it.type)) continue;
 
-    rows.push({pos:"Углы", unit:"шт", qty: Number(m.elbows||0), note:""});
-    if(Number(m.connElbows||0)>0) rows.push({pos:"Соединители для углов", unit:"шт", qty:Number(m.connElbows||0), note:"вручную"});
+      let qtyVal = it.qty;
 
-    rows.push({pos:"Тройники", unit:"шт", qty: Number(m.tees||0), note:""});
-    if(Number(m.connTees||0)>0) rows.push({pos:"Соединители для тройников", unit:"шт", qty:Number(m.connTees||0), note:"вручную"});
-
-    rows.push({pos:"Четверники", unit:"шт", qty: Number(m.crosses||0), note:""});
-    if(Number(m.connCrosses||0)>0) rows.push({pos:"Соединители для четверников", unit:"шт", qty:Number(m.connCrosses||0), note:"вручную"});
-
-    rows.push({pos:"Серверы", unit:"шт", qty: Number(m.servers||0), note:""});
-    rows.push({pos:"Блоки питания", unit:"шт", qty: Number(m.psuCount||0), note: m.psuPower?`${m.psuPower} Вт/шт`:""});
-
-    rows.push({pos:"Датчик → сервер (крайний)", unit:"м", qty: Number(m.distLast||0), note:""});
-    rows.push({pos:"Сервер → точка подключения", unit:"м", qty: Number(m.distConn||0), note:""});
-
-    rows.push({pos:"Интернет заказчика", unit:"—", qty: m.custNet ? "Да" : "Нет", note:""});
-    rows.push({pos:"Интернет-антенна", unit:"—", qty: m.ant ? "Да" : "Нет", note: m.ant ? (m.antPlace==="out" ? "выносная" : "в сервере") : ""});
-    if(m.ant && m.antPlace==="out") rows.push({pos:"Сервер → антенна", unit:"м", qty: Number(m.antDist||0), note:"выносная"});
-
-    if(m.obj==="tunnel"){
-      rows.push({pos:"Трансформатор", unit:"—", qty: m.tr ? "Да" : "Нет", note:"только тоннель"});
-      if(m.tr){
-        rows.push({pos:"Трансформаторы", unit:"шт", qty:Number(m.trCount||0), note:""});
-        rows.push({pos:"Трансформатор → сервер", unit:"м", qty:Number(m.trDist||0), note:""});
+      if(typeof qtyVal === "number"){
+        // ok
+      } else if(typeof qtyVal === "string"){
+        if(qtyVal.startsWith("=")){
+          qtyVal = safeEval(qtyVal, ctx);
+        } else {
+          const num = Number(qtyVal);
+          if(Number.isFinite(num) && String(qtyVal).trim() !== "") qtyVal = num;
+        }
       }
+
+      // если выбран "Дюбель-хомуты" -> анкер-кольцо = 0
+      if(it.num === "3.4" && m.hoseMount === "dowel"){
+        qtyVal = 0;
+      }
+
+      // если трос не нужен -> 4.5-4.8 = 0
+      if(Number(m.cableNeeded||0) === 0){
+        if(["4.5","4.6","4.7","4.8"].includes(it.num)){
+          qtyVal = 0;
+        }
+      }
+
+      // умножение серверных позиций на кол-во систем
+      if(needsSystemMultiplier(it) && typeof qtyVal === "number"){
+        qtyVal = qtyVal * systems;
+      }
+
+      // скрыть нулевые числовые позиции (кроме "индивидуально")
+      const isInd = (typeof it.qty === "string" && it.qty.toLowerCase().includes("индивиду"));
+      if(!isInd && typeof qtyVal === "number" && Math.abs(qtyVal) < 1e-12){
+        continue;
+      }
+
+      rows.push({ num: it.num, name: it.name, unit: it.unit, qty: qtyVal });
     }
 
     const notes = [];
-    if(m.obj==="tank") notes.push("резервуар: гофра по умолчанию");
-    if(m.vib) notes.push("вибрация: добавить поплавки (по Excel)");
-    if(m.heat) notes.push("обогрев: выше потребление");
+    notes.push(`Объект: ${({building:"Здание", tank:"Резервуар", tunnel:"Тоннель", special:"Спец. назначение"})[m.obj] || m.obj}`);
+    notes.push(`Систем: ${Math.max(1, Number(m.systems||1))}`);
+    if(m.vib) notes.push("Вибрация: да (поплавки добавлены)");
+    if(m.hoseMount === "dowel") notes.push("Крепление шланга: дюбель-хомуты (анкер-кольцо = 0)");
+    if(Number(m.cableNeeded||1) === 0) notes.push("Трос: нет (позиции 4.5–4.8 = 0)");
+
     return { rows, notes };
+  }
+
+  function groupByNum(num){
+    const n = String(num||"");
+    if(n.startsWith("1.")) return { key:"sensors", title:"Датчики и базовые элементы", cls:"g-sensors" };
+    if(n.startsWith("2.")) return { key:"server",  title:"Сервер / связь / питание", cls:"g-server" };
+    if(n.startsWith("3.")) return { key:"mount",   title:"Монтажные компоненты", cls:"g-mount" };
+    if(n.startsWith("4.")) return { key:"comm",    title:"Коммутация / трасса / расходники", cls:"g-comm" };
+    if(n.startsWith("5.")) return { key:"tools",   title:"Инструмент", cls:"g-tools" };
+    return { key:"other", title:"Прочее", cls:"g-sensors" };
+  }
+
+  function sortByNum(a, b){
+    const pa = String(a.num).split(".").map(x=>Number(x||0));
+    const pb = String(b.num).split(".").map(x=>Number(x||0));
+    if(pa[0]!==pb[0]) return pa[0]-pb[0];
+    return (pa[1]||0)-(pb[1]||0);
   }
 
   function mRenderOutput(){
     const out = mOutRows();
     const tbl = byId("m_outTable");
-    tbl.innerHTML =
-      `<thead><tr><th>Позиция</th><th>Ед.</th><th>Кол-во</th><th>Комментарий</th></tr></thead>` +
-      `<tbody>` + out.rows.map(r => `
-        <tr>
-          <td><b>${String(r.pos)}</b></td>
-          <td>${String(r.unit)}</td>
-          <td class="mono">${String(r.qty)}</td>
-          <td>${String(r.note||"")}</td>
-        </tr>`).join("") + `</tbody>`;
-    byId("m_status").textContent = out.notes.length ? ("Примечания: " + out.notes.join(" • ")) : "Примечаний нет.";
+
+    const rows = [...out.rows].sort(sortByNum);
+
+    let html = `<thead><tr>
+      <th style="width:56px">№</th>
+      <th>Позиция</th>
+      <th style="width:90px">Ед.</th>
+      <th style="width:110px">Кол-во</th>
+    </tr></thead><tbody>`;
+
+    let lastGroupKey = null;
+    let idx = 0;
+
+    for(const r of rows){
+      const g = groupByNum(r.num);
+      if(g.key !== lastGroupKey){
+        html += `<tr class="gRow ${g.cls}">
+          <td class="mono">—</td>
+          <td colspan="3">${g.title}</td>
+        </tr>`;
+        lastGroupKey = g.key;
+      }
+
+      idx += 1;
+      html += `<tr>
+        <td class="mono"><b>${idx}</b></td>
+        <td>${r.name}</td>
+        <td>${r.unit}</td>
+        <td class="mono">${formatQty(r.qty)}</td>
+      </tr>`;
+    }
+
+    html += `</tbody>`;
+    tbl.innerHTML = html;
+    byId("m_status").textContent = out.notes.join(" • ");
   }
 
   async function mCopy(){
     const out = mOutRows();
-    const lines = out.rows.map(r => `- ${r.pos}: ${r.qty} ${r.unit}${r.note ? " ("+r.note+")" : ""}`);
-    const text = `Монтажные комплектующие — параметры\n${lines.join("\n")}`;
-    try{ await navigator.clipboard.writeText(text); showToast("Итог скопирован"); }
+    const rows = [...out.rows].sort(sortByNum);
+    const lines = rows.map((r, i) => `${i+1}\t${r.name}\t${r.unit}\t${formatQty(r.qty)}`);
+    const text =
+      `Монтажные комплектующие (по Excel)\n` +
+      `Параметры: ${out.notes.join(" | ")}\n\n` +
+      `№\tПозиция\tЕд.\tКол-во\n` + lines.join("\n");
+
+    try{ await navigator.clipboard.writeText(text); showToast("Скопировано"); }
     catch(e){ showToast("Не удалось скопировать"); }
   }
+
+  function mExportExcel(){
+    const out = mOutRows();
+    const rows = [...out.rows].sort(sortByNum);
+
+    let idx = 0;
+    let lastGroupKey = null;
+
+    const esc = (s) => String(s ?? "")
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;");
+
+    let table = `
+      <table border="1" cellpadding="6" cellspacing="0">
+        <tr><th colspan="4">Монтажные комплектующие (по Excel)</th></tr>
+        <tr><td colspan="4">${esc(out.notes.join(" • "))}</td></tr>
+        <tr><th>№</th><th>Позиция</th><th>Ед.</th><th>Кол-во</th></tr>
+    `;
+
+    for(const r of rows){
+      const g = groupByNum(r.num);
+      if(g.key !== lastGroupKey){
+        table += `<tr><td colspan="4"><b>${esc(g.title)}</b></td></tr>`;
+        lastGroupKey = g.key;
+      }
+      idx += 1;
+      table += `<tr>
+        <td>${idx}</td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.unit)}</td>
+        <td>${esc(formatQty(r.qty))}</td>
+      </tr>`;
+    }
+
+    table += `</table>`;
+
+    const html =
+`<!doctype html>
+<html><head><meta charset="utf-8"></head><body>${table}</body></html>`;
+
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "монтажные_комплектующие.xls";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 800);
+
+    showToast("Экспортировано в Excel");
+  }
+
   function mReset(){ localStorage.removeItem(MKEY); location.reload(); }
 
   function mInit(){
     mLoad();
-    if(m.obj === "tank") m.gofra = true;
 
     mRenderStepper();
     mRenderObjTiles();
-    mRenderWallTiles();
     mBindToggles();
-    mBindNums();
     mFillInputs();
-    mApplyVisibility();
-    mRenderOutput();
-    mGo(Number(m.step||0));
+
+    bindNum("m_sensors","sensors");
+    bindNum("m_len","len");
+    bindNum("m_elbows","elbows");
+    bindNum("m_over50","over50");
+    bindNum("m_tees","tees");
+    bindNum("m_crosses","crosses");
+    bindNum("m_systems","systems");
+    bindNum("m_edgeSensors","edgeSensors");
+    bindNum("m_distLast","distLast");
+    bindNum("m_socketDist","socketDist");
+
+    byId("m_cableNeeded").addEventListener("change", (e)=>{ m.cableNeeded = Number(e.target.value); mRenderOutput(); mSave(); });
+    byId("m_hoseMount").addEventListener("change", (e)=>{ m.hoseMount = e.target.value; mRenderOutput(); mSave(); });
 
     byId("m_next0").addEventListener("click", () => mGo(1));
     byId("m_prev1").addEventListener("click", () => mGo(0));
@@ -901,12 +1113,16 @@
     byId("m_prev3").addEventListener("click", () => mGo(2));
     byId("m_next3").addEventListener("click", () => mGo(4));
     byId("m_prev4").addEventListener("click", () => mGo(3));
-    byId("m_next4").addEventListener("click", () => mGo(5));
-    byId("m_prev5").addEventListener("click", () => mGo(4));
 
     byId("m_copy").addEventListener("click", mCopy);
+    byId("m_export_excel").addEventListener("click", mExportExcel);
     byId("m_reset").addEventListener("click", mReset);
+
+    mApplyVisibility();
+    mRenderOutput();
+    mGo(Number(m.step||0));
   }
+
   mInit();
 })();
 </script>
