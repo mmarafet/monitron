@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Калькулятор падения напряжения по длине кабеля</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h1, h2 {
+      margin-top: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+    button {
+      cursor: pointer;
+      font-weight: bold;
+      border: none;
+      transition: 0.2s;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      background: #fff;
+    }
+    th, td {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 8px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+    th {
+      background: #f8fafc;
+      font-weight: bold;
+    }
+    .results {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    .result-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .result-title {
+      font-size: 13px;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+    .result-value {
+      font-size: 22px;
+      font-weight: bold;
+      color: #1d4ed8;
+    }
+    .small {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .note {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.5;
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    @media (max-width: 900px) {
+      .grid, .grid-2, .results {
+        grid-template-columns: 1fr;
+      }
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Калькулятор падения напряжения по длине кабеля</h1>
+      <p class="small">
+        Расчёт для линии с последовательно расположенными нагрузками.
+        Для каждого участка учитывается ток всех последующих потребителей.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Общие параметры</h2>
+      <div class="grid">
+        <div>
+          <label for="systemType">Тип сети</label>
+          <select id="systemType">
+            <option value="dc">DC / 1-фазная</option>
+            <option value="3phase">3-фазная</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="voltage">Напряжение питания, В</label>
+          <input type="number" id="voltage" value="24" step="0.01" />
+        </div>
+
+        <div>
+          <label for="material">Материал жилы</label>
+          <select id="material">
+            <option value="copper">Медь</option>
+            <option value="aluminum">Алюминий</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="crossSection">Сечение кабеля, мм²</label>
+          <input type="number" id="crossSection" value="1.5" step="0.01" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Нагрузки по линии</h2>
+      <p class="small">
+        Каждый участок — это расстояние от предыдущей точки до следующего потребителя.
+      </p>
+
+      <div class="grid-2" style="margin-bottom: 16px;">
+        <div class="note">
+          <strong>Пример:</strong><br>
+          Источник → 10 м → Нагрузка 1 → 7 м → Нагрузка 2 → 5 м → Нагрузка 3<br><br>
+          Для участка 10 м считается ток нагрузок 1+2+3.<br>
+          Для участка 7 м считается ток нагрузок 2+3.<br>
+          Для участка 5 м считается ток нагрузки 3.
+        </div>
+        <div class="row-actions">
+          <button class="btn-primary" onclick="addRow()">Добавить участок</button>
+          <button class="btn-secondary" onclick="addDemo()">Пример</button>
+          <button class="btn-danger" onclick="clearRows()">Очистить</button>
+        </div>
+      </div>
+
+      <table id="loadsTable">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Длина участка, м</th>
+            <th>Количество устройств</th>
+            <th>Потребление 1 устройства, А</th>
+            <th>Ток нагрузки в точке, А</th>
+            <th>Удалить</th>
+          </tr>
+        </thead>
+        <tbody id="loadsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="row-actions">
+        <button class="btn-primary" onclick="calculate()">Рассчитать</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Итоги</h2>
+      <div class="results">
+        <div class="result-box">
+          <div class="result-title">Общая длина линии</div>
+          <div class="result-value" id="totalLength">0 м</div>
+        </div>
+        <div class="result-box">
+          <div class="result-title">Суммарный ток нагрузок</div>
+          <div class="result-value" id="totalCurrent">0 А</div>
+        </div>
+        <div class="result-box">
+          <div class="result-title">Общее падение напряжения</div>
+          <div class="result-value" id="totalDrop">0 В</div>
+        </div>
+        <div class="result-box">
+          <div class="result-title">Потери</div>
+          <div class="result-value" id="totalDropPercent">0 %</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Расчёт по участкам</h2>
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th>№ участка</th>
+            <th>Длина, м</th>
+            <th>Ток через участок, А</th>
+            <th>Сопротивление участка, Ом</th>
+            <th>Падение напряжения, В</th>
+            <th>Напряжение после участка, В</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function getResistivity(material) {
+      // Ом·мм²/м
+      return material === "aluminum" ? 0.0282 : 0.0175;
+    }
+
+    function addRow(length = "", qty = "", currentPerDevice = "") {
+      const tbody = document.getElementById("loadsBody");
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td class="row-index"></td>
+        <td><input type="number" step="0.01" value="${length}" /></td>
+        <td><input type="number" step="1" value="${qty}" /></td>
+        <td><input type="number" step="0.001" value="${currentPerDevice}" /></td>
+        <td class="point-current">0</td>
+        <td><button class="btn-danger" onclick="removeRow(this)">X</button></td>
+      `;
+
+      tbody.appendChild(row);
+      refreshRowNumbers();
+    }
+
+    function removeRow(btn) {
+      btn.closest("tr").remove();
+      refreshRowNumbers();
+    }
+
+    function clearRows() {
+      document.getElementById("loadsBody").innerHTML = "";
+      document.getElementById("resultBody").innerHTML = "";
+      refreshRowNumbers();
+      resetTotals();
+    }
+
+    function addDemo() {
+      clearRows();
+      addRow(10, 2, 0.35);
+      addRow(7, 1, 0.60);
+      addRow(5, 3, 0.20);
+      calculate();
+    }
+
+    function refreshRowNumbers() {
+      const rows = document.querySelectorAll("#loadsBody tr");
+      rows.forEach((row, index) => {
+        row.querySelector(".row-index").textContent = index + 1;
+      });
+    }
+
+    function resetTotals() {
+      document.getElementById("totalLength").textContent = "0 м";
+      document.getElementById("totalCurrent").textContent = "0 А";
+      document.getElementById("totalDrop").textContent = "0 В";
+      document.getElementById("totalDropPercent").textContent = "0 %";
+    }
+
+    function calculate() {
+      const voltage = parseFloat(document.getElementById("voltage").value) || 0;
+      const crossSection = parseFloat(document.getElementById("crossSection").value) || 0;
+      const material = document.getElementById("material").value;
+      const systemType = document.getElementById("systemType").value;
+      const rho = getResistivity(material);
+
+      const rows = Array.from(document.querySelectorAll("#loadsBody tr"));
+      const resultBody = document.getElementById("resultBody");
+      resultBody.innerHTML = "";
+
+      if (rows.length === 0 || voltage <= 0 || crossSection <= 0) {
+        alert("Заполни напряжение, сечение и добавь хотя бы один участок.");
+        return;
+      }
+
+      const data = rows.map((row) => {
+        const inputs = row.querySelectorAll("input");
+        const length = parseFloat(inputs[0].value) || 0;
+        const qty = parseFloat(inputs[1].value) || 0;
+        const currentPerDevice = parseFloat(inputs[2].value) || 0;
+        const loadCurrent = qty * currentPerDevice;
+        return { length, qty, currentPerDevice, loadCurrent, row };
+      });
+
+      // Показываем ток каждой точки нагрузки
+      data.forEach(item => {
+        item.row.querySelector(".point-current").textContent = item.loadCurrent.toFixed(3);
+      });
+
+      let totalLength = 0;
+      let totalLoadCurrent = 0;
+      let totalDrop = 0;
+      let voltageAfter = voltage;
+
+      for (let i = 0; i < data.length; i++) {
+        totalLength += data[i].length;
+        totalLoadCurrent += data[i].loadCurrent;
+      }
+
+      for (let i = 0; i < data.length; i++) {
+        const segmentLength = data[i].length;
+
+        // Ток через участок = сумма всех нагрузок от текущей точки до конца
+        let currentThroughSegment = 0;
+        for (let j = i; j < data.length; j++) {
+          currentThroughSegment += data[j].loadCurrent;
+        }
+
+        // Сопротивление участка
+        // DC/1ф: туда-обратно => 2L
+        // 3ф: используем стандартную формулу ΔU = √3 × I × ρL/S
+        let resistance;
+        let drop;
+
+        if (systemType === "3phase") {
+          resistance = (rho * segmentLength) / crossSection;
+          drop = Math.sqrt(3) * currentThroughSegment * resistance;
+        } else {
+          resistance = (rho * 2 * segmentLength) / crossSection;
+          drop = currentThroughSegment * resistance;
+        }
+
+        totalDrop += drop;
+        voltageAfter -= drop;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${segmentLength.toFixed(2)}</td>
+          <td>${currentThroughSegment.toFixed(3)}</td>
+          <td>${resistance.toFixed(5)}</td>
+          <td>${drop.toFixed(3)}</td>
+          <td>${voltageAfter.toFixed(3)}</td>
+        `;
+        resultBody.appendChild(tr);
+      }
+
+      const totalDropPercent = voltage > 0 ? (totalDrop / voltage) * 100 : 0;
+
+      document.getElementById("totalLength").textContent = totalLength.toFixed(2) + " м";
+      document.getElementById("totalCurrent").textContent = totalLoadCurrent.toFixed(3) + " А";
+      document.getElementById("totalDrop").textContent = totalDrop.toFixed(3) + " В";
+      document.getElementById("totalDropPercent").textContent = totalDropPercent.toFixed(2) + " %";
+    }
+
+    // Стартовые строки
+    addRow(10, 1, 0.5);
+    addRow(15, 2, 0.35);
+    addRow(8, 1, 1.2);
+  </script>
+</body>
+</html>
