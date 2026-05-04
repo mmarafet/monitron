@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Δh/L калькулятор</title>
+<style>
+body{margin:0;background:#0f172a;color:#e2e8f0;font-family:Arial,sans-serif}
+.container{max-width:480px;margin:60px auto;background:#1e293b;padding:20px;border-radius:10px}
+label{display:block;margin-top:12px}
+.row{display:flex;gap:8px}
+input,select{flex:1;padding:10px;margin-top:4px;border:none;border-radius:6px;background:#020617;color:#fff}
+button{margin-top:16px;width:100%;padding:12px;background:#22c55e;border:none;border-radius:6px;font-weight:bold;cursor:pointer}
+.result{margin-top:16px;padding:12px;background:#020617;border-radius:6px;text-align:center;font-size:18px}
+</style>
+</head>
+<body>
+<div class="container">
+  <label>Отметка 1</label>
+  <div class="row">
+    <input id="h1" type="number" step="any">
+    <select id="u1">
+      <option value="0.001">мм</option>
+      <option value="0.01">см</option>
+      <option value="1">м</option>
+    </select>
+  </div>
+
+  <label>Отметка 2</label>
+  <div class="row">
+    <input id="h2" type="number" step="any">
+    <select id="u2">
+      <option value="0.001">мм</option>
+      <option value="0.01">см</option>
+      <option value="1">м</option>
+    </select>
+  </div>
+
+  <label>Расстояние</label>
+  <div class="row">
+    <input id="L" type="number" step="any">
+    <select id="uL">
+      <option value="0.001">мм</option>
+      <option value="0.01">см</option>
+      <option value="1">м</option>
+    </select>
+  </div>
+
+  <button onclick="calc()">Рассчитать</button>
+  <div class="result" id="out">—</div>
+</div>
+
+<script>
+function calc(){
+  var h1=document.getElementById('h1').value;
+  var h2=document.getElementById('h2').value;
+  var L=document.getElementById('L').value;
+
+  var u1=document.getElementById('u1').value;
+  var u2=document.getElementById('u2').value;
+  var uL=document.getElementById('uL').value;
+
+  if(h1===""||h2===""||L===""||L==0){
+    document.getElementById('out').innerHTML="Введи данные";
+    return;
+  }
+
+  var H1=h1*u1;
+  var H2=h2*u2;
+  var dist=L*uL;
+
+  var rel=(H2-H1)/dist;
+
+  // формат: 8 знаков, запятая
+  var val = rel.toFixed(8).replace('.', ',');
+
+  document.getElementById('out').innerHTML=val;
+}
+</script>
+</body>
+</html>
